@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# C++ Build & Executables
+*.exe
+*.o
+*.obj
+*.out
+backend/*.exe
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+
+# OS and Editor Files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

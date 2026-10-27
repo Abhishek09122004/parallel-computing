@@ -1,0 +1,19 @@
+{
+  "name": "parallel-computing",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "build:cpp": "g++ -O3 -fopenmp backend/heat_solver.cpp -o backend/heat_solver.exe",
+    "test:benchmark": ".\\backend\\heat_solver.exe --grid 512 --steps 100 --mode benchmark"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^5.3.0",
+    "ws": "^8.22.0"
+  }
+}

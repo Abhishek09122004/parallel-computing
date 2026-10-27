@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HPC Thermal Studio | Real-Time Parallel Heat Diffusion Dashboard</title>
+    <!-- Modern Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Top Navigation & System Telemetry Bar -->
+        <header class="top-header">
+            <div class="brand">
+                <div class="brand-logo">
+                    <span class="flame-icon">🔥</span>
+                </div>
+                <div>
+                    <h1 class="brand-title">THERMAL<span class="gradient-text">PARALLEL</span></h1>
+                    <span class="brand-subtitle">High-Performance 2D Heat Diffusion & OpenMP Analytics</span>
+                </div>
+            </div>
+
+            <div class="system-telemetry">
+                <div class="telemetry-item">
+                    <span class="telemetry-label">CPU ARCH</span>
+                    <span class="telemetry-value" id="sysCpuModel">Detecting...</span>
+                </div>
+                <div class="telemetry-item">
+                    <span class="telemetry-label">CORES / THREADS</span>
+                    <span class="telemetry-value highlight" id="sysCores">8 Threads</span>
+                </div>
+                <div class="telemetry-item">
+                    <span class="telemetry-label">BACKEND COMPILER</span>
+                    <span class="telemetry-value" id="sysCompiler">GCC 15.2 (OpenMP)</span>
+                </div>
+                <div class="telemetry-badge status-connected" id="backendBadge">
+                    <span class="pulse-dot"></span>
+                    <span id="backendStatusText">C++ Native Connected</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Workspace -->
+        <main class="main-layout">
+            <!-- Left Sidebar: Controls & Configuration -->
+            <aside class="sidebar-panel">
+                <div class="panel-section">
+                    <div class="section-header">
+                        <span class="icon">⚙️</span>
+                        <h3>Execution Engine</h3>
+                    </div>
+                    <div class="engine-toggle-group">
+                        <button class="engine-btn active" id="btnEngineCpp" data-engine="cpp">
+                            <span class="engine-icon">⚡</span>
+                            <div>
+                                <div class="engine-name">Native C++ OpenMP</div>
+                                <div class="engine-desc">Compiled GCC 15.2 (Fastest)</div>
+                            </div>
+                        </button>
+                        <button class="engine-btn" id="btnEngineWorker" data-engine="worker">
+                            <span class="engine-icon">🌐</span>
+                            <div>
+                                <div class="engine-name">Web Workers Pool</div>
+                                <div class="engine-desc">Browser In-Memory Parallel</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Thread Configuration -->
+                <div class="panel-section">
+                    <div class="section-header">
+                        <span class="icon">🧵</span>
+                        <h3>Parallel Threads</h3>
+                        <span class="badge-accent" id="activeThreadCountLabel">4 Cores</span>
+                    </div>
+                    <div class="thread-selector-grid" id="threadButtonsContainer">
+                        <button class="thread-chip" data-threads="1">1 Thread</button>
+                        <button class="thread-chip" data-threads="2">2 Threads</button>
+                        <button class="thread-chip active" data-threads="4">4 Threads</button>
+                        <button class="thread-chip" data-threads="8">8 Threads</button>
+                    </div>
+
+                    <div class="input-row mt-3">
+                        <label for="selectSchedule">OpenMP Schedule:</label>
+                        <select id="selectSchedule" class="custom-select">
+                            <option value="static">Static (Zero Overhead)</option>
+                            <option value="dynamic">Dynamic (Chunk: 16)</option>
+                            <option value="guided">Guided (Exponential)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Physical Simulation Parameters -->
+                <div class="panel-section">
+                    <div class="section-header">
+                        <span class="icon">🌡️</span>
+                        <h3>Thermal Physics</h3>
+                    </div>
+                    <div class="slider-control">
+                        <div class="slider-header">
+                            <span>Diffusivity (&alpha;)</span>
+                            <span class="val" id="valAlpha">0.22</span>
+                        </div>
+                        <input type="range" id="sliderAlpha" min="0.05" max="0.25" step="0.01" value="0.22">
+                        <div class="cfl-indicator ok" id="cflStatus">
+                            <span>✓ Stable (CFL &le; 0.25)</span>
+                        </div>
+                    </div>
+
+                    <div class="slider-control mt-2">
+                        <div class="slider-header">
+                            <span>Grid Resolution</span>
+                            <span class="val" id="valGrid">256 &times; 256</span>
+                        </div>
+                        <input type="range" id="sliderGrid" min="128" max="1024" step="128" value="256">
+                    </div>
+
+                    <div class="input-row mt-2">
+                        <label for="selectColormap">Colormap:</label>
+                        <select id="selectColormap" class="custom-select">
+                            <option value="inferno">Inferno (Thermal)</option>
+                            <option value="turbo">Google Turbo (Spectral)</option>
+                            <option value="coolwarm">Cool to Warm (Scientific)</option>
+                            <option value="viridis">Viridis (Perceptual)</option>
+                            <option value="flame">Flame Metal (High Contrast)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Interactive Paint & Presets -->
+                <div class="panel-section">
+                    <div class="section-header">
+                        <span class="icon">🖌️</span>
+                        <h3>Interactive Probe & Heat Tools</h3>
+                    </div>
+                    <div class="tool-btn-grid">
+                        <button class="tool-btn active" id="toolHeat" title="Paint Hot Heat Source">
+                            <span>🔥</span> Heat Source (+120°C)
+                        </button>
+                        <button class="tool-btn" id="toolCool" title="Apply Thermal Heat Sink">
+                            <span>❄️</span> Heat Sink (0°C)
+                        </button>
+                        <button class="tool-btn" id="toolInsulate" title="Insulate Boundary">
+                            <span>🧱</span> Insulated Wall
+                        </button>
+                    </div>
+
+                    <div class="slider-control mt-2">
+                        <div class="slider-header">
+                            <span>Brush Radius</span>
+                            <span class="val" id="valBrush">16 px</span>
+                        </div>
+                        <input type="range" id="sliderBrush" min="4" max="48" step="2" value="16">
+                    </div>
+
+                    <div class="presets-container mt-3">
+                        <span class="preset-label">Test Bench Presets:</span>
+                        <div class="preset-chips">
+                            <button class="chip-btn" data-preset="cpu">🖥️ Multi-Die CPU</button>
+                            <button class="chip-btn" data-preset="heatsink">❄️ Cooling Fin</button>
+                            <button class="chip-btn" data-preset="laser">⚡ Laser Pulse</button>
+                            <button class="chip-btn" data-preset="ring">🌀 Concentric</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Theory Modal Trigger -->
+                <div class="panel-footer">
+                    <button class="btn-secondary w-100" id="btnOpenTheory">
+                        <span>📖</span> HPC Stencil & OpenMP Theory
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Center: Interactive Simulation Canvas & Live Heatmap -->
+            <section class="viewport-area">
+                <!-- Viewport Top Toolbar -->
+                <div class="viewport-toolbar">
+                    <div class="action-buttons">
+                        <button class="btn-primary" id="btnPlayPause">
+                            <span id="playIcon">▶</span> <span id="playText">Start Simulation</span>
+                        </button>
+                        <button class="btn-ghost" id="btnStep">
+                            <span>⏭</span> Step 1x
+                        </button>
+                        <button class="btn-ghost" id="btnReset">
+                            <span>↺</span> Reset Field
+                        </button>
+                    </div>
+
+                    <div class="overlay-toggles">
+                        <label class="toggle-switch" title="Highlight how the grid rows are partitioned among threads">
+                            <input type="checkbox" id="toggleThreadOverlay" checked>
+                            <span class="slider"></span>
+                            <span class="toggle-text">Thread Decomposition Overlay</span>
+                        </label>
+                        <label class="toggle-switch" title="Display thermal vector flux arrows">
+                            <input type="checkbox" id="toggleFlux">
+                            <span class="slider"></span>
+                            <span class="toggle-text">Heat Flux Vectors</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Canvas Container -->
+                <div class="canvas-wrapper" id="canvasWrapper">
+                    <canvas id="heatCanvas" width="512" height="512"></canvas>
+                    <canvas id="overlayCanvas" width="512" height="512"></canvas>
+
+                    <!-- Real-time HUD overlay on canvas -->
+                    <div class="canvas-hud">
+                        <div class="hud-item">
+                            <span class="hud-label">FPS</span>
+                            <span class="hud-value" id="hudFps">60.0</span>
+                        </div>
+                        <div class="hud-item">
+                            <span class="hud-label">STEP TIME</span>
+                            <span class="hud-value" id="hudStepTime">0.12 ms</span>
+                        </div>
+                        <div class="hud-item">
+                            <span class="hud-label">THROUGHPUT</span>
+                            <span class="hud-value highlight" id="hudGflops">13.2 GFLOPS</span>
+                        </div>
+                        <div class="hud-item">
+                            <span class="hud-label">BANDWIDTH</span>
+                            <span class="hud-value" id="hudBandwidth">17.8 GB/s</span>
+                        </div>
+                    </div>
+
+                    <!-- Temperature Scale Legend -->
+                    <div class="colormap-legend">
+                        <div class="legend-scale" id="legendGradient"></div>
+                        <div class="legend-labels">
+                            <span id="legendMin">0°C</span>
+                            <span>50°C</span>
+                            <span id="legendMax">100°C</span>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Canvas Hint -->
+                    <div class="canvas-hint">
+                        <span>💡 Tip: Click and drag on the grid to inject heat spots or draw heat sinks in real-time</span>
+                    </div>
+                </div>
+
+                <!-- Live Thread Load Distribution Bar -->
+                <div class="thread-load-strip" id="threadLoadStrip">
+                    <div class="strip-header">
+                        <span class="strip-title">Thread Workload Allocation (Row Slices)</span>
+                        <span class="strip-meta" id="threadStripMeta">8 Threads Active &bull; Equal Static Slicing</span>
+                    </div>
+                    <div class="strip-bars" id="threadSlicesVisual">
+                        <!-- Dynamic slices inserted via JS -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Sidebar: Parallel Analytics, Benchmarks & Roofline -->
+            <aside class="analytics-panel">
+                <div class="panel-section">
+                    <div class="section-header between">
+                        <div class="flex-row">
+                            <span class="icon">📊</span>
+                            <h3>HPC Benchmark Cockpit</h3>
+                        </div>
+                        <button class="btn-accent-sm" id="btnRunBenchmark">
+                            <span>⚡</span> Run Full Sweep
+                        </button>
+                    </div>
+                    <p class="section-note">
+                        Evaluates scaling across 1, 2, 4, 8 threads with the compiled OpenMP backend to verify Amdahl's Law and memory bandwidth saturation.
+                    </p>
+                </div>
+
+                <!-- Speedup Chart Card -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <span class="chart-title">Speedup vs Amdahl's Law</span>
+                        <span class="chart-stat" id="statMaxSpeedup">1.3x Peak</span>
+                    </div>
+                    <div class="chart-canvas-container">
+                        <canvas id="chartSpeedup" width="340" height="150"></canvas>
+                    </div>
+                    <div class="chart-legend-row">
+                        <span class="legend-dot ideal"></span> Ideal Linear ($S=p$)
+                        <span class="legend-dot actual"></span> Measured Speedup
+                        <span class="legend-dot amdahl"></span> Amdahl (95% parallel)
+                    </div>
+                </div>
+
+                <!-- Parallel Efficiency Card -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <span class="chart-title">Parallel Efficiency ($E = S_p / p$)</span>
+                        <span class="chart-stat" id="statAvgEfficiency">62% Avg</span>
+                    </div>
+                    <div class="chart-canvas-container">
+                        <canvas id="chartEfficiency" width="340" height="130"></canvas>
+                    </div>
+                </div>
+
+                <!-- Compute vs Memory Bandwidth (Roofline Insights) -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <span class="chart-title">Throughput (GFLOPS) & Bandwidth (GB/s)</span>
+                    </div>
+                    <div class="chart-canvas-container">
+                        <canvas id="chartThroughput" width="340" height="130"></canvas>
+                    </div>
+                    <div class="hpc-insight-card">
+                        <div class="insight-badge">⚡ HPC ANALYSIS</div>
+                        <p class="insight-text" id="hpcInsightText">
+                            Stencil computations have an arithmetic intensity of ~0.25 FLOP/byte. Performance saturates early due to memory bus bandwidth, reaching 18+ GB/s.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Detailed Benchmark Metrics Table -->
+                <div class="panel-section">
+                    <div class="section-header">
+                        <span class="icon">📋</span>
+                        <h3>Benchmark Data Log</h3>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="metrics-table" id="benchmarkTable">
+                            <thead>
+                                <tr>
+                                    <th>Cores</th>
+                                    <th>Time</th>
+                                    <th>Speedup</th>
+                                    <th>GFLOPS</th>
+                                    <th>GB/s</th>
+                                </tr>
+                            </thead>
+                            <tbody id="benchmarkTableBody">
+                                <tr><td colspan="5" class="table-placeholder">Click "Run Full Sweep" to benchmark</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </aside>
+        </main>
+
+        <!-- Theory & Mathematical Foundations Modal -->
+        <div class="modal-backdrop" id="theoryModal">
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <div class="flex-row">
+                        <span class="modal-icon">📐</span>
+                        <div>
+                            <h2>Parallel 2D Heat Diffusion: Mathematical & HPC Foundations</h2>
+                            <p class="modal-sub">Finite Difference Method, OpenMP Stencils, and Roofline Scaling</p>
+                        </div>
+                    </div>
+                    <button class="modal-close" id="btnCloseTheory">&times;</button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="theory-grid">
+                        <div class="theory-card">
+                            <h3>1. Governing Partial Differential Equation (PDE)</h3>
+                            <p>Fourier's 2nd Law of Heat Conduction in two dimensions:</p>
+                            <div class="math-block">
+                                $$\frac{\partial u}{\partial t} = \alpha \left( \frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2} \right)$$
+                            </div>
+                            <p>Where $u(x, y, t)$ is temperature and $\alpha$ is thermal diffusivity.</p>
+                        </div>
+
+                        <div class="theory-card">
+                            <h3>2. 5-Point Finite Difference Stencil</h3>
+                            <p>Using forward time, central space (FTCS) finite differencing on a square grid ($\Delta x = \Delta y = h$):</p>
+                            <div class="math-block">
+                                $$u_{i,j}^{t+1} = u_{i,j}^t + \frac{\alpha \Delta t}{h^2} \left( u_{i+1,j}^t + u_{i-1,j}^t + u_{i,j+1}^t + u_{i,j-1}^t - 4u_{i,j}^t \right)$$
+                            </div>
+                            <p><strong>CFL Stability Criterion:</strong> For explicit 2D numerical schemes, stability requires $r = \frac{\alpha \Delta t}{h^2} \le 0.25$. Exceeding 0.25 causes numerical explosions.</p>
+                        </div>
+
+                        <div class="theory-card">
+                            <h3>3. Domain Decomposition & OpenMP Mapping</h3>
+                            <p>The 2D matrix is decomposed across $p$ threads using horizontal row-slabs:</p>
+                            <pre><code>#pragma omp parallel num_threads(p)
+{
+    // Persistent thread pool avoids fork/join overhead
+    for (int step = 0; step < steps; ++step) {
+        #pragma omp for schedule(static)
+        for (int y = 1; y < H - 1; ++y) {
+            #pragma omp simd
+            for (int x = 1; x < W - 1; ++x) {
+                // Stencil computation with AVX2 SIMD
+            }
+        }
+    }
+}</code></pre>
+                        </div>
+
+                        <div class="theory-card">
+                            <h3>4. Amdahl's Law vs Memory Saturation</h3>
+                            <p>Amdahl's law defines maximum theoretical speedup based on the parallel fraction $P$:</p>
+                            <div class="math-block">
+                                $$S(p) = \frac{1}{(1 - P) + \frac{P}{p}}$$
+                            </div>
+                            <p>In memory-bandwidth-bound stencils, performance often levels off early because multiple CPU cores compete for the shared DDR memory bus.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn-primary" id="btnModalCloseAction">Close Guide</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/chart_manager.js"></script>
+    <script src="js/renderer.js"></script>
+    <script src="js/worker_solver.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
